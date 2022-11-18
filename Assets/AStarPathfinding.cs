@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -7,11 +8,18 @@ public class AStarPathfinding : MonoBehaviour
     private Vector2 startPos;
     private Vector2 endPos;
     public Transform endObj;
-
-    public AStarGrid grid;
+    
+    public LayerMask whatIsBarrier;
 
     private List<Node> openNodes = new List<Node>();
-    private List<Node> closedNodes = new List<Node>();
+    private List<Vector2> closedPos = new List<Vector2>();
+    private List<Vector2> adjacentPos = new List<Vector2>();
+
+    private List<Vector2> testList = new List<Vector2>();
+
+    private float checkRadius = 0.1f;
+    
+    
 
 
     public List<Node> Pathfind()
@@ -20,7 +28,8 @@ public class AStarPathfinding : MonoBehaviour
         endPos = endObj.position;
 
         openNodes.Clear();
-        closedNodes.Clear();
+        closedPos.Clear();
+        testList.Clear();
 
         Node startNode = new Node(0, GetDistance(startPos, endPos), startPos);
         openNodes.Add(startNode);
@@ -31,28 +40,46 @@ public class AStarPathfinding : MonoBehaviour
         {
             Node currentNode = GetLowestFNode(openNodes);
 
+            openNodes.Remove(currentNode);
+            closedPos.Add(currentNode.pos);
+            
             if (currentNode.pos == endPos)
             {
+                openNodes.Clear();
+                closedPos.Clear();
+                adjacentPos.Clear();
                 return GetPath(currentNode);
             }
 
-            openNodes.Remove(currentNode);
-            closedNodes.Add(currentNode);
-
-            foreach (Node adjacentNode in GetAdjacentNodes(currentNode))
+            foreach (Vector2 adjacentPos in GetAdjacentPositions(currentNode.pos))
             {
-                if (closedNodes.Contains(adjacentNode))
+                if (closedPos.Contains(adjacentPos))
                 {
                     continue;
                 }
-                
-                if (currentNode.g < adjacentNode.g)
+
+                if (Physics2D.OverlapCircle(adjacentPos, checkRadius, whatIsBarrier))
                 {
-                    adjacentNode.cameFromThisNode = currentNode;
-                    if (!openNodes.Contains(adjacentNode))
+                    closedPos.Add(adjacentPos);
+                    continue;
+                }
+
+                int newG = currentNode.g + GetDistance(adjacentPos, currentNode.pos);
+
+                Node adjacentNode = openNodes.Find(node => node.pos == adjacentPos);
+
+                if (adjacentNode != null)
+                {
+                    if (newG < adjacentNode.g)
                     {
-                        openNodes.Add(adjacentNode);
+                        adjacentNode.g = newG;
+                        adjacentNode.cameFromThisNode = currentNode;
                     }
+                }
+                else
+                {
+                    adjacentNode = new Node(newG, GetDistance(adjacentPos, endPos), adjacentPos, currentNode);
+                    openNodes.Add(adjacentNode);
                 }
             }
         }
@@ -62,41 +89,16 @@ public class AStarPathfinding : MonoBehaviour
 
 
 
-    private List<Node> GetAdjacentNodes(Node givenNode)
+    private List<Vector2> GetAdjacentPositions(Vector2 givenPos)
     {
-        List<Node> tempNodes = new List<Node>();
+        adjacentPos.Clear();
 
-        Vector2 upPos = new Vector2(givenNode.pos.x, givenNode.pos.y + 1);
-        Vector2 downPos = new Vector2(givenNode.pos.x, givenNode.pos.y - 1);
-        Vector2 leftPos = new Vector2(givenNode.pos.x - 1, givenNode.pos.y);
-        Vector2 rightPos = new Vector2(givenNode.pos.x + 1, givenNode.pos.y);
-
-        for (int i = 0; i < grid.gridArr.Length; i++)
-        {
-            Vector2 currentGridPos = new Vector2(grid.gridArr[i].transform.position.x, grid.gridArr[i].transform.position.y);
-
-            if (upPos == currentGridPos)
-            {
-                tempNodes.Add(new Node(GetDistance(startPos, upPos), GetDistance(upPos, endPos), upPos));
-            }
-
-            if (downPos == currentGridPos)
-            {
-                tempNodes.Add(new Node(GetDistance(startPos, downPos), GetDistance(downPos, endPos), downPos));
-            }
-            
-            if (leftPos == currentGridPos)
-            {
-                tempNodes.Add(new Node(GetDistance(startPos, leftPos), GetDistance(leftPos, endPos), leftPos));
-            }
-            
-            if (rightPos == currentGridPos)
-            {
-                tempNodes.Add(new Node(GetDistance(startPos, rightPos), GetDistance(rightPos, endPos), rightPos));
-            }
-        }
+        adjacentPos.Add(new Vector2(givenPos.x, givenPos.y + 1));
+        adjacentPos.Add(new Vector2(givenPos.x, givenPos.y - 1));
+        adjacentPos.Add(new Vector2(givenPos.x - 1, givenPos.y));
+        adjacentPos.Add(new Vector2(givenPos.x + 1, givenPos.y));
         
-        return tempNodes;
+        return adjacentPos;
     }
 
 
@@ -114,7 +116,7 @@ public class AStarPathfinding : MonoBehaviour
         
         for (int i = 0; i < givenNodes.Count; i++)
         {
-            if (givenNodes[i].f() < lowestFNode.f())
+            if (givenNodes[i].f() < lowestFNode.f() || givenNodes[i].f() == lowestFNode.f() && openNodes[i].h < lowestFNode.h)
             {
                 lowestFNode = givenNodes[i];
             }
@@ -140,7 +142,16 @@ public class AStarPathfinding : MonoBehaviour
         }
 
         path.Reverse();
-
+        
         return path;
+    }
+
+
+    private void OnDrawGizmos()
+    {
+        for (int i = 0; i < testList.Count; i++)
+        {
+            Gizmos.DrawSphere(testList[i], 0.1f);
+        }
     }
 }
