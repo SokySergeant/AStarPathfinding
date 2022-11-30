@@ -5,68 +5,65 @@ using UnityEngine;
 
 public class AStarPathfinding : MonoBehaviour
 {
-    private Vector2 startPos;
-    private Vector2 endPos;
+    private Vector2 _startPos;
+    private Vector2 _endPos;
     public Transform endObj;
     
     public LayerMask whatIsBarrier;
 
-    private List<Node> openNodes = new List<Node>();
-    private List<Vector2> closedPos = new List<Vector2>();
-    private List<Vector2> adjacentPos = new List<Vector2>();
+    private List<Node> _openNodes = new List<Node>();
+    private HashSet<Vector2> _closedPositions = new HashSet<Vector2>();
+    private List<Vector2> _adjacentPositions = new List<Vector2>();
 
-    private List<Vector2> testList = new List<Vector2>();
-
-    private float checkRadius = 0.1f;
+    private float _checkRadius = 0.1f;
     
     
 
 
     public List<Node> Pathfind()
     {
-        startPos = transform.position;
-        endPos = endObj.position;
+        _startPos = transform.position;
+        _endPos = endObj.position;
 
-        openNodes.Clear();
-        closedPos.Clear();
-        testList.Clear();
+        _openNodes.Clear();
+        _closedPositions.Clear();
 
-        Node startNode = new Node(0, GetDistance(startPos, endPos), startPos);
-        openNodes.Add(startNode);
+        Node startNode = new Node(0, GetDistance(_startPos, _endPos), _startPos);
+        _openNodes.Add(startNode);
 
         
 
-        while (openNodes.Count > 0)
+        while (_openNodes.Count > 0)
         {
-            Node currentNode = GetLowestFNode(openNodes);
+            Node currentNode = GetLowestFNode(_openNodes);
 
-            openNodes.Remove(currentNode);
-            closedPos.Add(currentNode.pos);
+            _openNodes.Remove(currentNode);
+            _closedPositions.Add(currentNode.pos);
             
-            if (currentNode.pos == endPos)
+            if (currentNode.pos == _endPos)
             {
-                openNodes.Clear();
-                closedPos.Clear();
-                adjacentPos.Clear();
+                _openNodes.Clear();
+                _closedPositions.Clear();
+                _adjacentPositions.Clear();
                 return GetPath(currentNode);
             }
 
             foreach (Vector2 adjacentPos in GetAdjacentPositions(currentNode.pos))
             {
-                if (closedPos.Contains(adjacentPos))
+                if (_closedPositions.Contains(adjacentPos))
                 {
                     continue;
                 }
 
-                if (Physics2D.OverlapCircle(adjacentPos, checkRadius, whatIsBarrier))
+                if (Physics2D.OverlapCircle(adjacentPos, _checkRadius, whatIsBarrier))
                 {
-                    closedPos.Add(adjacentPos);
+                    _closedPositions.Add(adjacentPos);
                     continue;
                 }
 
                 int newG = currentNode.g + GetDistance(adjacentPos, currentNode.pos);
 
-                Node adjacentNode = openNodes.Find(node => node.pos == adjacentPos);
+                Node adjacentNode = _openNodes.Find(node => node.pos == adjacentPos);
 
                 if (adjacentNode != null)
                 {
@@ -78,8 +75,8 @@ public class AStarPathfinding : MonoBehaviour
                 }
                 else
                 {
-                    adjacentNode = new Node(newG, GetDistance(adjacentPos, endPos), adjacentPos, currentNode);
-                    openNodes.Add(adjacentNode);
+                    adjacentNode = new Node(newG, GetDistance(adjacentPos, _endPos), adjacentPos, currentNode);
+                    _openNodes.Add(adjacentNode);
                 }
             }
         }
@@ -91,14 +88,14 @@ public class AStarPathfinding : MonoBehaviour
 
     private List<Vector2> GetAdjacentPositions(Vector2 givenPos)
     {
-        adjacentPos.Clear();
+        _adjacentPositions.Clear();
 
-        adjacentPos.Add(new Vector2(givenPos.x, givenPos.y + 1));
-        adjacentPos.Add(new Vector2(givenPos.x, givenPos.y - 1));
-        adjacentPos.Add(new Vector2(givenPos.x - 1, givenPos.y));
-        adjacentPos.Add(new Vector2(givenPos.x + 1, givenPos.y));
+        _adjacentPositions.Add(new Vector2(givenPos.x, givenPos.y + 1));
+        _adjacentPositions.Add(new Vector2(givenPos.x, givenPos.y - 1));
+        _adjacentPositions.Add(new Vector2(givenPos.x - 1, givenPos.y));
+        _adjacentPositions.Add(new Vector2(givenPos.x + 1, givenPos.y));
         
-        return adjacentPos;
+        return _adjacentPositions;
     }
 
 
@@ -116,7 +113,7 @@ public class AStarPathfinding : MonoBehaviour
         
         for (int i = 0; i < givenNodes.Count; i++)
         {
-            if (givenNodes[i].f() < lowestFNode.f() || givenNodes[i].f() == lowestFNode.f() && openNodes[i].h < lowestFNode.h)
+            if (givenNodes[i].f() < lowestFNode.f() || givenNodes[i].f() == lowestFNode.f() && _openNodes[i].h < lowestFNode.h)
             {
                 lowestFNode = givenNodes[i];
             }
@@ -144,14 +141,5 @@ public class AStarPathfinding : MonoBehaviour
         path.Reverse();
         
         return path;
-    }
-
-
-    private void OnDrawGizmos()
-    {
-        for (int i = 0; i < testList.Count; i++)
-        {
-            Gizmos.DrawSphere(testList[i], 0.1f);
-        }
     }
 }
